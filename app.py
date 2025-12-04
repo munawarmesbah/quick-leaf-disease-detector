@@ -18,22 +18,47 @@ st.set_page_config(
 st.title("🌿 Quick Checker-Leaf Diseases")
 st.write("Upload a leaf image and the system will predict if it's Healthy or Diseased.")
 
-MODEL_URL = "https://drive.google.com/uc?export=download&id=16CydnM03zA-NpjfV5oIahxjJq94IqLex"
+FILE_ID = "16CydnM03zA-NpjfV5oIahxjJq94IqLex"
 MODEL_PATH = "model.pth"
 
 
 # ===============================
-# Download Model File
+# Download Large Google Drive File
 # ===============================
-def download_model():
+def download_from_google_drive(file_id, destination):
+    """Handles large file downloads from Google Drive."""
+    URL = "https://drive.google.com/uc?export=download"
+
+    session = requests.Session()
+    response = session.get(URL, params={'id': file_id}, stream=True)
+
+    # Detect confirmation token
+    def get_confirm_token(response):
+        for key, value in response.cookies.items():
+            if key.startswith('download_warning'):
+                return value
+        return None
+
+    token = get_confirm_token(response)
+
+    if token:
+        params = {'id': file_id, 'confirm': token}
+        response = session.get(URL, params=params, stream=True)
+
+    # Save the model file
+    with open(destination, "wb") as f:
+        for chunk in response.iter_content(32768):
+            if chunk:
+                f.write(chunk)
+
+
+def ensure_model_exists():
     if not os.path.exists(MODEL_PATH):
-        st.warning("Downloading model (first time only)... please wait ⏳")
-        response = requests.get(MODEL_URL)
+        st.warning("Downloading model from Google Drive… This may take 10–30 seconds ⏳")
 
-        with open(MODEL_PATH, "wb") as f:
-            f.write(response.content)
+        download_from_google_drive(FILE_ID, MODEL_PATH)
 
-        st.success("Model downloaded successfully!")
+        st.success("Model downloaded successfully ✔")
 
 
 # ===============================
@@ -41,7 +66,7 @@ def download_model():
 # ===============================
 @st.cache_resource
 def load_model():
-    download_model()
+    ensure_model_exists()
 
     device = torch.device("cpu")
 
@@ -63,13 +88,12 @@ def load_model():
     return model
 
 
-# Load only once
 model = load_model()
 class_names = ['Diseased', 'Healthy']
 
 
 # ===============================
-# Image Transform
+# Transform
 # ===============================
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -80,19 +104,18 @@ transform = transforms.Compose([
 
 
 # ===============================
-# File Upload UI
+# Upload Section
 # ===============================
 uploaded_file = st.file_uploader("Choose a leaf image...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
-    image = Image.open(uploaded_file).convert('RGB')
-    st.image(image, caption='Uploaded Leaf', use_column_width=True)
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Uploaded Leaf", use_column_width=True)
 
-    # Preprocess image
-    input_tensor = transform(image).unsqueeze(0)
+    tensor = transform(image).unsqueeze(0)
 
     with torch.no_grad():
-        outputs = model(input_tensor)
+        outputs = model(tensor)
         probs = torch.softmax(outputs, dim=1)
         conf, idx = torch.max(probs, 1)
 
