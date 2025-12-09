@@ -121,7 +121,7 @@ transform = transforms.Compose([
 # Streamlit UI
 # -------------------------------
 st.set_page_config(page_title="Leaf Disease Detection", layout="centered")
-st.title("🌿 Leaf Disease Detection")
+st.title("🌿 PlantXpert: Smart Diagnosis of Plant Diseases")
 st.write("Upload an image of a plant leaf, and the model will tell whether it's Healthy or Diseased.")
 
 uploaded_file = st.file_uploader("Choose a leaf image...", type=["jpg", "jpeg", "png"])
@@ -140,3 +140,4 @@ if uploaded_file is not None:
     class_names = ['Diseased', 'Healthy']
     st.write(f"**Prediction:** {class_names[pred.item()]}")
     st.write(f"**Confidence:** {confidence.item()*100:.2f}%")
+
